@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Copy, Check, ArrowRight, AlertCircle } from "lucide-react";
 import { useInkStore } from "@/lib/store";
+
+// Dynamic import for R3F (requires client-side only)
+const Portrait = dynamic(() => import("@/components/Portrait"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-[var(--color-ink-accent-cyan)] border-t-transparent rounded-full animate-spin" />
+    </div>
+  ),
+});
 
 const ANALYSIS_PROMPT = `I want to create a visual portrait of your identity. Please analyze yourself by:
 
@@ -236,15 +247,16 @@ export default function CreatePage() {
 
         {/* Right panel - Preview */}
         <div className="hidden lg:flex w-1/2 bg-[var(--color-ink-bg-base)] items-center justify-center border-l border-[var(--color-ink-border)]">
-          <div className="text-center text-[var(--color-ink-text-muted)]">
-            {visualParams ? (
-              <div className="w-96 h-96 rounded-2xl bg-gradient-to-br from-[var(--color-ink-accent-cyan)]/20 to-[var(--color-ink-accent-coral)]/20 flex items-center justify-center">
-                <p className="text-sm">Portrait preview will render here</p>
-              </div>
-            ) : (
+          {visualParams ? (
+            <Portrait
+              params={visualParams}
+              className="w-96 h-96 rounded-2xl overflow-hidden"
+            />
+          ) : (
+            <div className="text-center text-[var(--color-ink-text-muted)]">
               <p>Your portrait will appear here</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

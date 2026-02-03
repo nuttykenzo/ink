@@ -207,18 +207,24 @@ See [docs/DATA.md](docs/DATA.md) for complete schema specification.
 - Export success rate
 - Performance (Core Web Vitals)
 
-## Timeline
+## Timeline & Implementation Status
 
-**Week 1:**
-- Project setup, architecture
-- Core portrait generation (hash → visuals)
-- Basic UI (landing, input, preview)
+**Week 1:** ✅ COMPLETE
+- ✅ Project setup, architecture
+- ✅ Core portrait generation (hash → visuals)
+- ✅ Basic UI (landing, input, preview)
 
-**Week 2:**
-- Data parsing and validation
-- Full visual parameter mapping
-- Export functionality (video, GIF, PNG)
-- Polish and launch
+**Implemented (as of 2026-02-02):**
+- ✅ Data layer: Zod schema, JSON parser with markdown extraction
+- ✅ Generation layer: Visual params mapping, color palette by topics
+- ✅ Shader layer: flowField.frag with 8 uniforms (seed, complexity, organicness, colors, saturation, time)
+- ✅ Rendering layer: R3F Canvas with animated FlowField mesh
+- ✅ UI layer: 3-step wizard (copy prompt → paste JSON → export)
+- ✅ State management: Zustand store with parse/generate flow
+
+**Week 2:** 🔜 TODO
+- 🔜 Export functionality (video, GIF, PNG)
+- 🔜 Polish and launch
 
 ## Future Considerations
 

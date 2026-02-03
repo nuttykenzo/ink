@@ -111,34 +111,51 @@ export function dataToVisualParams(data: AgentData): VisualParams {
 }
 ```
 
-### 3. Rendering Layer (`src/components/canvas/`)
+### 3. Rendering Layer (`src/components/`)
 
 React Three Fiber components for the actual visualization.
 
 ```typescript
-// src/components/canvas/Portrait.tsx
-export function Portrait({ params }: { params: VisualParams }) {
-  return (
-    <Canvas>
-      <FlowField params={params} />
-      <Particles params={params} />
-      <GrainOverlay intensity={0.04} />
-      <PostProcessing>
-        <Bloom intensity={0.5} />
-      </PostProcessing>
-    </Canvas>
-  );
-}
-```
+// src/components/Portrait.tsx (IMPLEMENTED)
+"use client";
 
-```typescript
-// src/components/canvas/FlowField.tsx
-export function FlowField({ params }: { params: VisualParams }) {
-  const shaderRef = useRef<ShaderMaterial>(null);
+import { useRef, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import type { VisualParams } from "@/lib/generation/params";
+import vertexShader from "@/shaders/flowField.vert";
+import fragmentShader from "@/shaders/flowField.frag";
 
-  useFrame(({ clock }) => {
-    if (shaderRef.current) {
-      shaderRef.current.uniforms.uTime.value = clock.elapsedTime * params.animSpeed;
+function FlowField({ params }: { params: VisualParams }) {
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+
+  const uniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uSeed: { value: params.seed },
+    uComplexity: { value: params.complexity },
+    uOrganicness: { value: params.organicness },
+    uColor1: { value: new THREE.Vector3(
+      params.palette.primary.r,
+      params.palette.primary.g,
+      params.palette.primary.b
+    )},
+    uColor2: { value: new THREE.Vector3(
+      params.palette.secondary.r,
+      params.palette.secondary.g,
+      params.palette.secondary.b
+    )},
+    uColor3: { value: new THREE.Vector3(
+      params.palette.accent.r,
+      params.palette.accent.g,
+      params.palette.accent.b
+    )},
+    uSaturation: { value: params.saturation },
+  }), [params]);
+
+  useFrame((state) => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uTime.value =
+        state.clock.elapsedTime * params.animSpeed;
     }
   });
 
@@ -146,19 +163,25 @@ export function FlowField({ params }: { params: VisualParams }) {
     <mesh>
       <planeGeometry args={[2, 2]} />
       <shaderMaterial
-        ref={shaderRef}
-        vertexShader={flowFieldVert}
-        fragmentShader={flowFieldFrag}
-        uniforms={{
-          uSeed: { value: params.seed },
-          uComplexity: { value: params.complexity },
-          uOrganicness: { value: params.organicness },
-          uColor1: { value: params.palette.primary },
-          uColor2: { value: params.palette.secondary },
-          uTime: { value: 0 },
-        }}
+        ref={materialRef}
+        vertexShader={vertexShader}
+        fragmentShader={fragmentShader}
+        uniforms={uniforms}
       />
     </mesh>
+  );
+}
+
+export default function Portrait({ params, className }: PortraitProps) {
+  return (
+    <div className={className}>
+      <Canvas
+        gl={{ preserveDrawingBuffer: true }}
+        camera={{ position: [0, 0, 1], fov: 90 }}
+      >
+        <FlowField params={params} />
+      </Canvas>
+    </div>
   );
 }
 ```
@@ -328,52 +351,41 @@ export const useInkStore = create<InkState>((set, get) => ({
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # Root layout with fonts, metadata
-│   ├── page.tsx             # Landing page
+│   ├── layout.tsx          # ✅ Root layout with fonts, metadata
+│   ├── page.tsx            # ✅ Landing page
 │   ├── create/
-│   │   └── page.tsx         # Main creation flow
-│   └── globals.css          # Global styles
+│   │   └── page.tsx        # ✅ Main creation flow (3-step wizard)
+│   └── globals.css         # ✅ Global styles
 │
 ├── components/
-│   ├── canvas/
-│   │   ├── Portrait.tsx     # Main R3F canvas
-│   │   ├── FlowField.tsx    # Flow field mesh
-│   │   ├── Particles.tsx    # Particle system
-│   │   └── GrainOverlay.tsx # Texture overlay
-│   ├── ui/
-│   │   ├── Button.tsx
-│   │   ├── Input.tsx
-│   │   ├── TextArea.tsx
-│   │   └── ProgressBar.tsx
-│   └── export/
-│       ├── ExportPanel.tsx  # Export options UI
-│       └── ExportPreview.tsx
+│   └── Portrait.tsx        # ✅ R3F Canvas with FlowField shader
 │
 ├── lib/
 │   ├── data/
-│   │   ├── schema.ts        # Zod schemas
-│   │   ├── parser.ts        # JSON extraction/parsing
-│   │   └── validate.ts      # Validation helpers
+│   │   ├── schema.ts       # ✅ Zod schemas
+│   │   └── parser.ts       # ✅ JSON extraction/parsing
 │   ├── generation/
-│   │   ├── params.ts        # Data → visual params
-│   │   ├── palette.ts       # Color palette generation
-│   │   └── hash.ts          # Deterministic hashing
-│   ├── export/
-│   │   ├── video.ts         # Video export
-│   │   ├── gif.ts           # GIF export
-│   │   └── image.ts         # PNG export
-│   └── store.ts             # Zustand store
+│   │   ├── params.ts       # ✅ Data → visual params
+│   │   ├── palette.ts      # ✅ Color palette generation
+│   │   └── hash.ts         # ✅ Deterministic hashing
+│   ├── export/             # 🔜 TODO
+│   │   ├── video.ts        # Video export
+│   │   ├── gif.ts          # GIF export
+│   │   └── image.ts        # PNG export
+│   └── store.ts            # ✅ Zustand store
 │
 ├── shaders/
-│   ├── flowField.vert
-│   ├── flowField.frag
-│   ├── particles.vert
-│   ├── particles.frag
-│   └── grain.frag
+│   ├── flowField.vert      # ✅ Pass-through vertex shader
+│   └── flowField.frag      # ✅ Flow field fragment shader (8 uniforms)
 │
-└── hooks/
+├── types/
+│   └── shaders.d.ts        # ✅ TypeScript declarations for GLSL imports
+│
+└── hooks/                  # 🔜 TODO
     ├── usePortraitExport.ts
     └── useAnimationLoop.ts
+
+Legend: ✅ Implemented | 🔜 TODO
 ```
 
 ## Performance Considerations
