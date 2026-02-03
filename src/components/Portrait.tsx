@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { VisualParams } from "@/lib/generation/params";
 import type { CanvasCapture } from "@/lib/export/types";
 import ParticleSystem from "./ParticleSystem";
+import CharacteristicForms from "./CharacteristicForms";
 
 // Import shaders as raw strings
 import vertexShader from "@/shaders/flowField.vert";
@@ -130,6 +131,7 @@ export default function Portrait({
         style={{ width: "100%", height: "100%" }}
       >
         <FlowField params={params} />
+        <CharacteristicForms params={params} />
         <ParticleSystem params={params} />
         {onRegisterCapture && (
           <ExportController

@@ -1,6 +1,11 @@
 import type { AgentData } from "../data/schema";
 import { hashString } from "./hash";
 import { generatePalette, type ColorPalette } from "./palette";
+import {
+  traitsToVector,
+  getDefaultTraitVector,
+  type TraitVector,
+} from "./traitVocabulary";
 
 /**
  * Visual parameters derived from agent data.
@@ -29,6 +34,13 @@ export interface VisualParams {
   // Particles
   particleCount: number;
   trailLength: number; // 0-1
+
+  // Trait-space coordinates for characteristic forms
+  traitVector: TraitVector;
+
+  // Form generation parameters (derived from traitVector)
+  formCount: number; // 3-7 forms
+  formScale: number; // 0.1-0.35 of viewport
 }
 
 /**
@@ -94,6 +106,15 @@ export function dataToVisualParams(data: AgentData): VisualParams {
     0.9
   );
 
+  // Trait-space coordinates from self-assessed traits
+  const traitVector = traitsToVector(data.self_assessed_traits, seed);
+
+  // Form count scales with intensity (3-7 forms)
+  const formCount = Math.round(3 + traitVector.intensityScale * 4);
+
+  // Form scale inversely related to count (larger when fewer)
+  const formScale = normalize(formCount, 3, 7, 0.25, 0.12);
+
   return {
     seed,
     complexity,
@@ -106,6 +127,9 @@ export function dataToVisualParams(data: AgentData): VisualParams {
     pulseIntensity,
     particleCount,
     trailLength,
+    traitVector,
+    formCount,
+    formScale,
   };
 }
 
@@ -130,5 +154,8 @@ export function getDefaultVisualParams(): VisualParams {
     pulseIntensity: 0.5,
     particleCount: 5000,
     trailLength: 0.5,
+    traitVector: getDefaultTraitVector(),
+    formCount: 5,
+    formScale: 0.18,
   };
 }
