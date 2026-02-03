@@ -37,12 +37,49 @@ function createSeededRandom(seed: number): () => number {
 }
 
 /**
- * Generate body mesh buffers from configuration.
- * Creates a triangle fan with center vertex + perimeter vertices.
+ * Simplex noise for organic shapes.
+ */
+function noise2D(x: number, y: number, seed: number): number {
+  const random = createSeededRandom(Math.floor(x * 1000 + y * 7919 + seed));
+  return random() * 2 - 1;
+}
+
+/**
+ * Smooth noise with interpolation.
+ */
+function smoothNoise(angle: number, frequency: number, seed: number): number {
+  const x = Math.cos(angle) * frequency;
+  const y = Math.sin(angle) * frequency;
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+
+  // Bilinear interpolation of noise
+  const n00 = noise2D(ix, iy, seed);
+  const n10 = noise2D(ix + 1, iy, seed);
+  const n01 = noise2D(ix, iy + 1, seed);
+  const n11 = noise2D(ix + 1, iy + 1, seed);
+
+  const nx0 = n00 * (1 - fx) + n10 * fx;
+  const nx1 = n01 * (1 - fx) + n11 * fx;
+
+  return nx0 * (1 - fy) + nx1 * fy;
+}
+
+/**
+ * Generate wild body forms based on traits.
+ *
+ * Forms:
+ * - Cosmic (geometricOrganic < 0.3): Crystalline polygon with fractal spikes
+ * - Organic (geometricOrganic > 0.7): Amoeba with pseudopods
+ * - Lovecraftian (connectedIsolated > 0.7): Multi-lobed mass
+ * - Balanced: Rounder, relatable form with gentle undulation
  */
 function generateBodyBuffers(
   body: BodyConfig,
-  seed: number
+  seed: number,
+  traits: TraitVector
 ): {
   positions: Float32Array;
   edgeFactors: Float32Array;
@@ -53,7 +90,13 @@ function generateBodyBuffers(
   triangleCount: number;
 } {
   const random = createSeededRandom(seed);
-  const { resolution, radius, aspect, irregularity } = body;
+  const { resolution, radius, aspect } = body;
+  const { geometricOrganic, connectedIsolated, intensityScale } = traits;
+
+  // Determine form type
+  const isCosmic = geometricOrganic < 0.3;
+  const isOrganic = geometricOrganic > 0.7;
+  const isLovecraftian = !isCosmic && !isOrganic && connectedIsolated > 0.7;
 
   // Total vertices = center + perimeter
   const vertexCount = resolution + 1;
@@ -68,24 +111,118 @@ function generateBodyBuffers(
   // Center vertex (index 0)
   positions[0] = 0;
   positions[1] = 0;
-  positions[2] = 0.06; // Z position for layer ordering
+  positions[2] = 0.06;
   edgeFactors[0] = 0;
   noiseOffsets[0] = random() * 100;
   angles[0] = 0;
 
-  // Perimeter vertices
+  // Generate perimeter based on form type
   for (let i = 0; i < resolution; i++) {
-    const angle = (i / resolution) * Math.PI * 2;
+    const t = i / resolution;
+    const angle = t * Math.PI * 2;
     const idx = i + 1;
 
-    // Base position on ellipse
-    let x = Math.cos(angle) * radius * aspect[0];
-    let y = Math.sin(angle) * radius * aspect[1];
+    let r = radius;
 
-    // Add irregularity (static noise based on seed)
-    const irregularityAmount = irregularity * radius * 0.3;
-    x += (random() - 0.5) * 2 * irregularityAmount;
-    y += (random() - 0.5) * 2 * irregularityAmount;
+    if (isCosmic) {
+      // COSMIC/CRYSTALLINE: Sharp polygon with fractal spikes
+      const sides = 5 + Math.floor(random() * 3); // 5-7 sides
+      const polygonAngle = angle * sides / (Math.PI * 2);
+      const sidePhase = polygonAngle - Math.floor(polygonAngle);
+
+      // Sharp polygon edge
+      const polygonRadius = radius / Math.cos(Math.PI / sides * (2 * Math.abs(sidePhase - 0.5)));
+      r = Math.min(polygonRadius, radius * 1.3);
+
+      // Fractal spikes at vertices
+      const vertexProximity = Math.abs(sidePhase - 0.5) * 2; // 0 at vertices, 1 at midpoints
+      const spikeAmount = Math.pow(1 - vertexProximity, 3) * radius * 0.4 * intensityScale;
+      r += spikeAmount;
+
+      // Secondary crystalline detail
+      const crystalNoise = Math.sin(angle * 12 + seed) * 0.03 * radius;
+      r += crystalNoise;
+
+    } else if (isOrganic) {
+      // ORGANIC/BIOLUMINESCENT: Amoeba with pseudopods
+      // Multiple overlapping pseudopod bulges
+      const pseudopodCount = 3 + Math.floor(random() * 3);
+      let pseudopodEffect = 0;
+
+      for (let p = 0; p < pseudopodCount; p++) {
+        const podAngle = (random() * Math.PI * 2);
+        const podWidth = 0.3 + random() * 0.4; // How wide the pseudopod is
+        const podLength = 0.2 + random() * 0.4 * intensityScale; // How far it extends
+
+        // Gaussian-like falloff from pod center
+        let angleDiff = Math.abs(angle - podAngle);
+        if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+        const podInfluence = Math.exp(-angleDiff * angleDiff / (podWidth * podWidth));
+
+        pseudopodEffect += podInfluence * podLength * radius;
+      }
+
+      r += pseudopodEffect;
+
+      // Flowing organic noise
+      const organicNoise = smoothNoise(angle, 3, seed) * 0.1 * radius;
+      r += organicNoise;
+
+      // Soft undulation
+      r += Math.sin(angle * 5 + seed * 0.1) * 0.02 * radius;
+
+    } else if (isLovecraftian) {
+      // LOVECRAFTIAN: Multi-lobed mass with tentacular extensions
+      // Asymmetric lobes
+      const lobeCount = 2 + Math.floor(random() * 2);
+      let lobeEffect = 0;
+
+      for (let l = 0; l < lobeCount; l++) {
+        const lobeAngle = random() * Math.PI * 2;
+        const lobeSize = 0.15 + random() * 0.25;
+        const lobeExtent = 0.3 + random() * 0.5 * intensityScale;
+
+        let angleDiff = Math.abs(angle - lobeAngle);
+        if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+        const lobeInfluence = Math.exp(-angleDiff * angleDiff / (lobeSize * lobeSize));
+
+        lobeEffect += lobeInfluence * lobeExtent * radius;
+      }
+
+      r += lobeEffect;
+
+      // Tentacular base extensions (thin spikes going down)
+      const tentacleCount = 2 + Math.floor(random() * 3);
+      for (let tc = 0; tc < tentacleCount; tc++) {
+        const tentAngle = Math.PI + (random() - 0.5) * 1.2; // Bottom half
+        const tentWidth = 0.08 + random() * 0.05;
+        const tentLength = 0.2 + random() * 0.3 * intensityScale;
+
+        let angleDiff = Math.abs(angle - tentAngle);
+        if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+        const tentInfluence = Math.exp(-angleDiff * angleDiff / (tentWidth * tentWidth));
+
+        r += tentInfluence * tentLength * radius;
+      }
+
+      // Unsettling irregular noise
+      const eerieNoise = smoothNoise(angle, 5, seed + 999) * 0.08 * radius * connectedIsolated;
+      r += eerieNoise;
+
+    } else {
+      // BALANCED: Rounder, friendly form with gentle variation
+      // Soft bilateral symmetry tendency
+      const symmetryBias = 0.5 + 0.5 * Math.cos(angle * 2);
+      const gentleVariation = smoothNoise(angle, 2, seed) * 0.06 * radius * symmetryBias;
+      r += gentleVariation;
+
+      // Subtle breathing-friendly roundness
+      r += Math.sin(angle * 3 + seed * 0.05) * 0.02 * radius;
+    }
+
+    // Apply aspect ratio
+    const x = Math.cos(angle) * r * aspect[0];
+    const y = Math.sin(angle) * r * aspect[1];
 
     positions[idx * 3] = x;
     positions[idx * 3 + 1] = y;
@@ -101,7 +238,7 @@ function generateBodyBuffers(
     const v1 = i + 1;
     const v2 = ((i + 1) % resolution) + 1;
 
-    indices[i * 3] = 0; // center
+    indices[i * 3] = 0;
     indices[i * 3 + 1] = v1;
     indices[i * 3 + 2] = v2;
   }
@@ -134,10 +271,10 @@ export default function CreatureBody({
   // Generate style from traits
   const style = useMemo(() => generateStyle(traitVector), [traitVector]);
 
-  // Generate body buffers (memoized)
+  // Generate body buffers (memoized) - pass traits for wild forms
   const buffers = useMemo(
-    () => generateBodyBuffers(body, 12345),
-    [body]
+    () => generateBodyBuffers(body, 12345, traitVector),
+    [body, traitVector]
   );
 
   // Create uniforms
@@ -154,7 +291,8 @@ export default function CreatureBody({
       uBodyColor: { value: new THREE.Vector3(...colors.body) },
       uMembraneColor: { value: new THREE.Vector3(...colors.membrane) },
       uAccentColor: { value: new THREE.Vector3(...colors.accent) },
-      uOpacity: { value: body.membrane.opacity },
+      // Boost opacity so body stands out from background (min 0.85)
+      uOpacity: { value: Math.max(0.85, body.membrane.opacity) },
       uMembraneThickness: { value: body.membrane.thickness },
       uSaturation: { value: saturation },
 

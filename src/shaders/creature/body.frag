@@ -170,9 +170,8 @@ void main() {
 
   // Alpha calculation
   // - Base alpha from opacity uniform
-  // - Edges slightly more transparent for soft look
-  // - Center more opaque
-  float edgeAlpha = 1.0 - vEdgeFactor * 0.25;
+  // - Very subtle edge softness (reduced from 0.25 to 0.1 for more solid look)
+  float edgeAlpha = 1.0 - vEdgeFactor * 0.1;
   float alpha = uOpacity * edgeAlpha;
 
   // Subtle pulse animation
