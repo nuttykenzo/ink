@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* Design System Tokens */
+@theme {
+  /* Backgrounds */
+  --color-ink-bg-deep: #050810;
+  --color-ink-bg-base: #0d1117;
+  --color-ink-bg-elevated: #161b22;
+  --color-ink-bg-subtle: #21262d;
+
+  /* Accents */
+  --color-ink-accent-cyan: #00e5cc;
+  --color-ink-accent-coral: #ff4d4d;
+  --color-ink-accent-purple: #a855f7;
+
+  /* Text */
+  --color-ink-text-primary: #f0f4ff;
+  --color-ink-text-secondary: #8b949e;
+  --color-ink-text-muted: #484f58;
+
+  /* Borders */
+  --color-ink-border: #30363d;
+  --color-ink-border-active: #00e5cc;
+
+  /* Status */
+  --color-ink-success: #3fb950;
+  --color-ink-error: #f85149;
+  --color-ink-warning: #d29922;
+
+  /* Fonts */
+  --font-display: "Clash Display", system-ui, sans-serif;
+  --font-body: "Satoshi", system-ui, sans-serif;
+  --font-mono: "Fira Code", "SF Mono", "Consolas", monospace;
+
+  /* Animation */
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Base styles */
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-ink-bg-deep);
+  color: var(--color-ink-text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Monospace elements */
+code,
+pre,
+textarea.mono {
+  font-family: var(--font-mono);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--color-ink-accent-cyan);
+  color: var(--color-ink-bg-deep);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-ink-bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-text-muted);
+}
+
+/* Focus visible for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-ink-accent-cyan);
+  outline-offset: 2px;
+}
+
+/* Utility classes */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Grain texture overlay */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
