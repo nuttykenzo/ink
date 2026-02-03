@@ -5,8 +5,9 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { VisualParams } from "@/lib/generation/params";
 import type { CanvasCapture } from "@/lib/export/types";
+import { generateCreature } from "@/lib/creature";
 import ParticleSystem from "./ParticleSystem";
-import CharacteristicForms from "./CharacteristicForms";
+import Creature from "./Creature";
 
 // Import shaders as raw strings
 import vertexShader from "@/shaders/flowField.vert";
@@ -117,6 +118,20 @@ function ExportController({ onRegister, animSpeed }: ExportControllerProps) {
   return null;
 }
 
+/**
+ * Wrapper component that generates creature and renders it.
+ * Must be inside Canvas to use useMemo properly with R3F.
+ */
+function CreatureRenderer({ params }: { params: VisualParams }) {
+  // Generate creature from params (memoized for performance)
+  const creature = useMemo(
+    () => generateCreature(params, params.sessionsCount),
+    [params]
+  );
+
+  return <Creature params={params} creature={creature} />;
+}
+
 interface PortraitProps {
   params: VisualParams;
   className?: string;
@@ -136,7 +151,7 @@ export default function Portrait({
         style={{ width: "100%", height: "100%" }}
       >
         <FlowField params={params} />
-        <CharacteristicForms params={params} />
+        <CreatureRenderer params={params} />
         <ParticleSystem params={params} />
         {onRegisterCapture && (
           <ExportController

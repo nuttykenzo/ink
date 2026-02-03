@@ -41,6 +41,9 @@ export interface VisualParams {
   // Form generation parameters (derived from traitVector)
   formCount: number; // 3-7 forms
   formScale: number; // 0.1-0.35 of viewport
+
+  // Session count for creature maturity
+  sessionsCount: number;
 }
 
 /**
@@ -130,6 +133,7 @@ export function dataToVisualParams(data: AgentData): VisualParams {
     traitVector,
     formCount,
     formScale,
+    sessionsCount: data.sessions_count,
   };
 }
 
@@ -157,5 +161,6 @@ export function getDefaultVisualParams(): VisualParams {
     traitVector: getDefaultTraitVector(),
     formCount: 5,
     formScale: 0.18,
+    sessionsCount: 50, // Developing stage by default
   };
 }
