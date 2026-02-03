@@ -6,6 +6,7 @@ import type { Creature as CreatureType } from "@/lib/creature/types";
 import { useCreatureAnimation } from "@/hooks/useCreatureAnimation";
 import CreatureBody from "./CreatureBody";
 import CreatureEye from "./CreatureEye";
+import CreatureAppendage from "./CreatureAppendage";
 
 interface CreatureProps {
   params: VisualParams;
@@ -17,7 +18,7 @@ interface CreatureProps {
  * Manages animation state and renders all creature parts.
  */
 export default function Creature({ params, creature }: CreatureProps) {
-  const { body, eyes, behavior, colors } = creature;
+  const { body, eyes, appendages, behavior, colors } = creature;
 
   // Get animation state and update function
   const animation = useCreatureAnimation(creature);
@@ -29,6 +30,18 @@ export default function Creature({ params, creature }: CreatureProps) {
 
   return (
     <group>
+      {/* Appendages (render behind body at z=0.02) */}
+      {appendages.map((appendageConfig, index) => (
+        <CreatureAppendage
+          key={`appendage-${index}`}
+          config={appendageConfig}
+          bodyRadius={body.radius}
+          colors={colors}
+          animSpeed={params.animSpeed}
+          breathPhase={animation.breathPhase}
+        />
+      ))}
+
       {/* Body (renders behind eyes) */}
       <CreatureBody
         body={body}
