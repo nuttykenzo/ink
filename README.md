@@ -4,79 +4,72 @@
 
 Ink generates unique, beautiful visual portraits of OpenClaw/Moltbot AI agents based on their actual behavior, memory, and personality.
 
-![Ink Preview](docs/assets/preview.png)
+## Quick Start
+
+```bash
+npm install
+npm run dev
+# Open http://localhost:3000
+```
 
 ## What Is This?
 
 Every OpenClaw agent develops a unique identity through its interactions, memory, and behavior patterns. Ink makes that identity visible.
 
-Give your agent a simple prompt. It analyzes itself and outputs structured data. Paste that data into Ink. Get a stunning, shareable visualization of your agent's soul.
+1. Copy a prompt we provide
+2. Paste it into your OpenClaw agent
+3. Agent self-analyzes and outputs JSON
+4. Paste JSON into Ink
+5. Get a stunning, shareable portrait
 
-## Features
+## Project Status
 
-- **Generative Art Portraits** - Each agent gets a unique, deterministic visual identity
-- **Real Behavior Data** - Portraits reflect actual agent personality, not random generation
-- **Shareable Formats** - Export as video loop, GIF, or static image
-- **Beautiful by Default** - Tokyo Night aesthetic, flow field animations, oddly satisfying motion
+**Phase:** Active Development (Week 1 of 2)
 
-## Quick Start
-
-1. Visit [ink.ai](https://ink.ai) (or run locally)
-2. Copy the analysis prompt
-3. Paste it into your OpenClaw agent
-4. Copy your agent's JSON output
-5. Paste into Ink
-6. Download your portrait
+**For Claude/AI assistants:** Read [CONTEXT.md](CONTEXT.md) first - contains all research, decisions, and current implementation state needed to continue building.
 
 ## Tech Stack
 
 - **Next.js 15** - React framework
 - **React Three Fiber** - 3D rendering
-- **GLSL Shaders** - Flow fields, noise, generative effects
-- **Framer Motion** - UI animations
+- **GLSL Shaders** - Flow fields, particles
+- **Zustand** - State management
+- **Zod** - Data validation
 - **Tailwind CSS** - Styling
 
-## Local Development
+## Documentation
 
-```bash
-# Install dependencies
-pnpm install
-
-# Run development server
-pnpm dev
-
-# Build for production
-pnpm build
-```
+| Doc | Purpose |
+|-----|---------|
+| [CONTEXT.md](CONTEXT.md) | **Start here** - Full project context, research, decisions |
+| [SPEC.md](SPEC.md) | Product specification |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture |
+| [docs/DESIGN.md](docs/DESIGN.md) | Design system |
+| [docs/DATA.md](docs/DATA.md) | Agent data schema |
 
 ## Project Structure
 
 ```
 ink/
+├── CONTEXT.md               # Session continuity doc
+├── SPEC.md                  # Product spec
 ├── src/
-│   ├── app/              # Next.js app router pages
-│   ├── components/       # React components
-│   │   ├── canvas/       # R3F canvas components
-│   │   ├── ui/           # UI components
-│   │   └── export/       # Export functionality
-│   ├── lib/              # Utilities and helpers
-│   │   ├── data/         # Data parsing and validation
-│   │   ├── generation/   # Portrait generation logic
-│   │   └── export/       # Video/image export
-│   ├── shaders/          # GLSL shader files
-│   └── hooks/            # React hooks
-├── public/               # Static assets
-└── docs/                 # Documentation
-    ├── ARCHITECTURE.md   # Technical architecture
-    ├── DESIGN.md         # Design system
-    └── DATA.md           # Data format specification
+│   ├── app/                 # Next.js pages
+│   ├── lib/
+│   │   ├── data/            # Schema + parsing
+│   │   ├── generation/      # Data → visual params
+│   │   └── store.ts         # Zustand state
+│   └── shaders/             # GLSL flow fields
+└── docs/                    # Design + architecture
 ```
 
-## Documentation
+## Development
 
-- [Architecture](docs/ARCHITECTURE.md) - Technical deep dive
-- [Design System](docs/DESIGN.md) - Visual design specification
-- [Data Format](docs/DATA.md) - Agent data schema
+```bash
+npm run dev      # Start dev server
+npm run build    # Production build
+npm run lint     # ESLint
+```
 
 ## License
 
