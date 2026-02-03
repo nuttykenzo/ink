@@ -51,6 +51,7 @@ export default function Creature({ params, creature }: CreatureProps) {
         saturation={params.saturation}
         breathPhase={animation.breathPhase}
         driftOffset={animation.driftOffset}
+        traitVector={params.traitVector}
       />
 
       {/* Eyes (render in front of body) */}

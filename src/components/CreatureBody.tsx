@@ -4,6 +4,8 @@ import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { BodyConfig, CreatureColors, BehaviorConfig } from "@/lib/creature/types";
+import type { TraitVector } from "@/lib/generation/traitVocabulary";
+import { generateStyle } from "@/lib/creature/styleGenerator";
 
 // Import shaders as raw strings
 import vertexShader from "@/shaders/creature/body.vert";
@@ -17,6 +19,7 @@ interface CreatureBodyProps {
   saturation: number;
   breathPhase: number;
   driftOffset: [number, number];
+  traitVector: TraitVector;
 }
 
 /**
@@ -122,10 +125,14 @@ export default function CreatureBody({
   saturation,
   breathPhase,
   driftOffset,
+  traitVector,
 }: CreatureBodyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const geometryRef = useRef<THREE.BufferGeometry>(null);
+
+  // Generate style from traits
+  const style = useMemo(() => generateStyle(traitVector), [traitVector]);
 
   // Generate body buffers (memoized)
   const buffers = useMemo(
@@ -151,6 +158,12 @@ export default function CreatureBody({
       uMembraneThickness: { value: body.membrane.thickness },
       uSaturation: { value: saturation },
 
+      // Style uniforms
+      uStyleMode: { value: style.modeValue },
+      uBioluminescence: { value: style.glowIntensity },
+      uFractalDetail: { value: style.fractalDetail },
+      uEerieIntensity: { value: style.eerieIntensity },
+
       // Nucleus uniforms
       uHasNucleus: { value: body.nucleus !== undefined },
       uNucleusPos: {
@@ -168,7 +181,7 @@ export default function CreatureBody({
           : new THREE.Vector3(...colors.nucleus),
       },
     }),
-    [body, colors, saturation, breathPhase, driftOffset]
+    [body, colors, saturation, breathPhase, driftOffset, style]
   );
 
   // Set up buffer attributes
