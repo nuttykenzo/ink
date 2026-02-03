@@ -3,8 +3,9 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Copy, Check, ArrowRight, AlertCircle } from "lucide-react";
+import { Copy, Check, ArrowRight, AlertCircle, Download, Loader2 } from "lucide-react";
 import { useInkStore } from "@/lib/store";
+import { useExport } from "@/lib/export";
 
 // Dynamic import for R3F (requires client-side only)
 const Portrait = dynamic(() => import("@/components/Portrait"), {
@@ -52,8 +53,10 @@ export default function CreatePage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [copied, setCopied] = useState(false);
 
-  const { rawInput, setRawInput, parseInput, parseError, visualParams } =
+  const { rawInput, setRawInput, parseInput, parseError, visualParams, exporting } =
     useInkStore();
+
+  const { progress, startExport, registerCapture, isFormatSupported } = useExport();
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(ANALYSIS_PROMPT);
@@ -208,27 +211,84 @@ export default function CreatePage() {
                 Export and share your unique visualization.
               </p>
 
-              {/* Export options would go here */}
+              {/* Progress indicator */}
+              {progress.phase !== "idle" && progress.phase !== "complete" && (
+                <div className="mb-4 p-4 bg-[var(--color-ink-bg-elevated)] border border-[var(--color-ink-border)] rounded-xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-[var(--color-ink-accent-cyan)]" />
+                    <span className="text-sm font-medium">{progress.message}</span>
+                  </div>
+                  {progress.progress > 0 && (
+                    <div className="w-full h-2 bg-[var(--color-ink-bg-subtle)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--color-ink-accent-cyan)] transition-all duration-200"
+                        style={{ width: `${progress.progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {progress.phase === "complete" && (
+                <div className="mb-4 p-4 bg-[var(--color-ink-success)]/10 border border-[var(--color-ink-success)]/30 rounded-xl flex items-center gap-3">
+                  <Check className="w-5 h-5 text-[var(--color-ink-success)]" />
+                  <span className="text-sm text-[var(--color-ink-success)]">
+                    Downloaded!
+                  </span>
+                </div>
+              )}
+
+              {progress.phase === "error" && (
+                <div className="mb-4 p-4 bg-[var(--color-ink-error)]/10 border border-[var(--color-ink-error)]/30 rounded-xl flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-[var(--color-ink-error)]" />
+                  <span className="text-sm text-[var(--color-ink-error)]">
+                    {progress.message}
+                  </span>
+                </div>
+              )}
+
+              {/* Export options */}
               <div className="space-y-4">
-                <button className="w-full p-4 bg-[var(--color-ink-bg-elevated)] border border-[var(--color-ink-border)] rounded-xl text-left hover:border-[var(--color-ink-accent-cyan)] transition-colors">
-                  <div className="font-semibold mb-1">Video (MP4)</div>
-                  <div className="text-sm text-[var(--color-ink-text-secondary)]">
-                    15-30 second seamless loop for TikTok, Reels
+                <button
+                  onClick={() => startExport("video")}
+                  disabled={exporting || !isFormatSupported("video")}
+                  className="w-full p-4 bg-[var(--color-ink-bg-elevated)] border border-[var(--color-ink-border)] rounded-xl text-left hover:border-[var(--color-ink-accent-cyan)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-semibold mb-1">Video (MP4)</div>
+                    <div className="text-sm text-[var(--color-ink-text-secondary)]">
+                      15-30 second seamless loop for TikTok, Reels
+                    </div>
                   </div>
+                  <Download className="w-5 h-5 text-[var(--color-ink-text-muted)]" />
                 </button>
 
-                <button className="w-full p-4 bg-[var(--color-ink-bg-elevated)] border border-[var(--color-ink-border)] rounded-xl text-left hover:border-[var(--color-ink-accent-cyan)] transition-colors">
-                  <div className="font-semibold mb-1">GIF</div>
-                  <div className="text-sm text-[var(--color-ink-text-secondary)]">
-                    Short loop for Discord, Twitter
+                <button
+                  onClick={() => startExport("gif")}
+                  disabled={exporting || !isFormatSupported("gif")}
+                  className="w-full p-4 bg-[var(--color-ink-bg-elevated)] border border-[var(--color-ink-border)] rounded-xl text-left hover:border-[var(--color-ink-accent-cyan)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-semibold mb-1">GIF</div>
+                    <div className="text-sm text-[var(--color-ink-text-secondary)]">
+                      Short loop for Discord, Twitter
+                    </div>
                   </div>
+                  <Download className="w-5 h-5 text-[var(--color-ink-text-muted)]" />
                 </button>
 
-                <button className="w-full p-4 bg-[var(--color-ink-bg-elevated)] border border-[var(--color-ink-border)] rounded-xl text-left hover:border-[var(--color-ink-accent-cyan)] transition-colors">
-                  <div className="font-semibold mb-1">Image (PNG)</div>
-                  <div className="text-sm text-[var(--color-ink-text-secondary)]">
-                    High-res static image
+                <button
+                  onClick={() => startExport("png")}
+                  disabled={exporting}
+                  className="w-full p-4 bg-[var(--color-ink-bg-elevated)] border border-[var(--color-ink-border)] rounded-xl text-left hover:border-[var(--color-ink-accent-cyan)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-semibold mb-1">Image (PNG)</div>
+                    <div className="text-sm text-[var(--color-ink-text-secondary)]">
+                      High-res static image (2048x2048)
+                    </div>
                   </div>
+                  <Download className="w-5 h-5 text-[var(--color-ink-text-muted)]" />
                 </button>
               </div>
 
@@ -237,7 +297,8 @@ export default function CreatePage() {
                   setStep(1);
                   useInkStore.getState().clearData();
                 }}
-                className="mt-6 text-[var(--color-ink-text-secondary)] hover:text-[var(--color-ink-text-primary)] transition-colors"
+                disabled={exporting}
+                className="mt-6 text-[var(--color-ink-text-secondary)] hover:text-[var(--color-ink-text-primary)] transition-colors disabled:opacity-50"
               >
                 Start over
               </button>
@@ -251,6 +312,7 @@ export default function CreatePage() {
             <Portrait
               params={visualParams}
               className="w-96 h-96 rounded-2xl overflow-hidden"
+              onRegisterCapture={registerCapture}
             />
           ) : (
             <div className="text-center text-[var(--color-ink-text-muted)]">

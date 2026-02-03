@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useMemo } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useRef, useMemo, useEffect } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { VisualParams } from "@/lib/generation/params";
+import type { CanvasCapture } from "@/lib/export/types";
 import ParticleSystem from "./ParticleSystem";
 
 // Import shaders as raw strings
@@ -72,12 +73,55 @@ function FlowField({ params }: FlowFieldProps) {
   );
 }
 
+interface ExportControllerProps {
+  onRegister: (capture: CanvasCapture) => void;
+  animSpeed: number;
+}
+
+/**
+ * Internal component that exposes canvas capture capabilities
+ * Must be inside the Canvas to access R3F context
+ */
+function ExportController({ onRegister, animSpeed }: ExportControllerProps) {
+  const { gl, scene, camera } = useThree();
+
+  useEffect(() => {
+    const capture: CanvasCapture = {
+      canvas: gl.domElement,
+      getSize: () => ({
+        width: gl.domElement.width,
+        height: gl.domElement.height,
+      }),
+      setSize: (width: number, height: number) => {
+        gl.setSize(width, height);
+      },
+      render: () => {
+        gl.render(scene, camera);
+      },
+      setTime: () => {
+        // For PNG, we just render current frame
+        // Video/GIF will need more sophisticated time control
+      },
+      getAnimSpeed: () => animSpeed,
+    };
+
+    onRegister(capture);
+  }, [gl, scene, camera, animSpeed, onRegister]);
+
+  return null;
+}
+
 interface PortraitProps {
   params: VisualParams;
   className?: string;
+  onRegisterCapture?: (capture: CanvasCapture) => void;
 }
 
-export default function Portrait({ params, className }: PortraitProps) {
+export default function Portrait({
+  params,
+  className,
+  onRegisterCapture,
+}: PortraitProps) {
   return (
     <div className={className}>
       <Canvas
@@ -87,6 +131,12 @@ export default function Portrait({ params, className }: PortraitProps) {
       >
         <FlowField params={params} />
         <ParticleSystem params={params} />
+        {onRegisterCapture && (
+          <ExportController
+            onRegister={onRegisterCapture}
+            animSpeed={params.animSpeed}
+          />
+        )}
       </Canvas>
     </div>
   );
