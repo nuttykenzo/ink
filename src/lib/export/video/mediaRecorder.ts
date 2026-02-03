@@ -2,6 +2,7 @@ import type { CanvasCapture } from "../types";
 
 /**
  * Record canvas frames using MediaRecorder
+ * Uses real-time capture - the recording takes as long as the duration
  */
 export async function recordWithMediaRecorder(
   capture: CanvasCapture,
@@ -11,13 +12,13 @@ export async function recordWithMediaRecorder(
   onProgress: (progress: number) => void
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    // Create stream from canvas
+    // Create stream from canvas at target fps
     const stream = capture.canvas.captureStream(fps);
     const chunks: Blob[] = [];
 
     const recorder = new MediaRecorder(stream, {
       mimeType,
-      videoBitsPerSecond: 15_000_000, // 15 Mbps for high quality
+      videoBitsPerSecond: 8_000_000, // 8 Mbps - good quality, reasonable size
     });
 
     recorder.ondataavailable = (e) => {
@@ -36,36 +37,24 @@ export async function recordWithMediaRecorder(
     };
 
     // Start recording
-    recorder.start();
+    recorder.start(100); // Request data every 100ms for smoother progress
 
-    // Animate for duration with frame-accurate timing
-    const totalFrames = Math.floor(duration * fps);
-    let frame = 0;
-    const frameInterval = 1000 / fps;
+    // Track progress in real-time
     const startTime = performance.now();
+    const durationMs = duration * 1000;
 
-    const animate = () => {
-      if (frame >= totalFrames) {
-        recorder.stop();
-        return;
-      }
-
-      // Render frame
-      const time = (frame / totalFrames) * duration;
-      capture.setTime(time);
-      capture.render();
-
-      frame++;
-      onProgress((frame / totalFrames) * 100);
-
-      // Schedule next frame with accurate timing
+    const updateProgress = () => {
       const elapsed = performance.now() - startTime;
-      const nextFrameTime = frame * frameInterval;
-      const delay = Math.max(0, nextFrameTime - elapsed);
+      const progress = Math.min((elapsed / durationMs) * 100, 100);
+      onProgress(progress);
 
-      setTimeout(animate, delay);
+      if (elapsed < durationMs) {
+        requestAnimationFrame(updateProgress);
+      } else {
+        recorder.stop();
+      }
     };
 
-    animate();
+    requestAnimationFrame(updateProgress);
   });
 }

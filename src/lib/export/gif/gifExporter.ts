@@ -40,8 +40,8 @@ export async function exportGif(
     capture.setSize(size, size);
 
     const gif = new GIFConstructor({
-      workers: Math.min(navigator.hardwareConcurrency || 2, 4),
-      quality: 10, // Lower is better quality (1-30)
+      workers: Math.max(2, Math.min((navigator.hardwareConcurrency || 2) - 1, 6)),
+      quality: 15, // Faster encoding with acceptable quality (1-30)
       width: size,
       height: size,
       workerScript: "/gif.worker.js",

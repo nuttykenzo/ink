@@ -43,13 +43,28 @@ float snoise(vec2 v) {
   return 130.0 * dot(m, g);
 }
 
-// Fractal Brownian Motion
+// Fractal Brownian Motion - optimized version with configurable octaves
 float fbm(vec2 p, float seed) {
   float value = 0.0;
   float amplitude = 0.5;
   float frequency = 1.0;
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 4; i++) {
+    value += amplitude * snoise(p * frequency + seed);
+    frequency *= 2.0;
+    amplitude *= 0.5;
+  }
+
+  return value;
+}
+
+// Lighter FBM for domain warping (3 octaves)
+float fbmLight(vec2 p, float seed) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  float frequency = 1.0;
+
+  for (int i = 0; i < 3; i++) {
     value += amplitude * snoise(p * frequency + seed);
     frequency *= 2.0;
     amplitude *= 0.5;
@@ -65,23 +80,18 @@ void main() {
   float time = uTime * 0.1;
   float seed = uSeed * 0.001;
 
-  // Domain warping for organic feel
+  // Domain warping for organic feel (simplified: removed r layer)
   vec2 q = vec2(
-    fbm(uv * uComplexity + seed, seed),
-    fbm(uv * uComplexity + vec2(5.2, 1.3) + seed, seed + 1.0)
+    fbmLight(uv * uComplexity + seed, seed),
+    fbmLight(uv * uComplexity + vec2(5.2, 1.3) + seed, seed + 1.0)
   );
 
-  vec2 r = vec2(
-    fbm(uv * uComplexity + 4.0 * q + vec2(1.7, 9.2) + time, seed + 2.0),
-    fbm(uv * uComplexity + 4.0 * q + vec2(8.3, 2.8) + time, seed + 3.0)
-  );
+  // Mix organic distortion (use q directly instead of r)
+  float f = fbm(uv * uComplexity + 4.0 * q * uOrganicness + time, seed + 2.0);
 
-  // Mix organic distortion
-  float f = fbm(uv * uComplexity + 4.0 * r * uOrganicness, seed + 4.0);
-
-  // Create color mixing
+  // Create color mixing (reuse f for secondary mix instead of extra snoise)
   float colorMix = f * 0.5 + 0.5;
-  float colorMix2 = snoise(uv * 3.0 + time * 0.5 + seed) * 0.5 + 0.5;
+  float colorMix2 = (q.x + q.y) * 0.25 + 0.5;
 
   // Blend colors
   vec3 color = mix(uColor1, uColor2, colorMix);

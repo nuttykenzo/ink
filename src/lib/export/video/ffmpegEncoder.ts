@@ -43,6 +43,17 @@ async function loadFFmpeg(): Promise<FFmpegInstance> {
 }
 
 /**
+ * Pre-warm FFmpeg.wasm by starting the load early
+ * Call this when the portrait is first displayed
+ */
+export function prewarmFFmpeg(): void {
+  // Start loading but don't await - fire and forget
+  loadFFmpeg().catch(() => {
+    // Silently ignore errors during prewarm
+  });
+}
+
+/**
  * Convert WebM blob to MP4 using FFmpeg.wasm
  */
 export async function convertToMp4(
@@ -51,9 +62,10 @@ export async function convertToMp4(
 ): Promise<Blob> {
   const { ffmpeg, fetchFile } = await loadFFmpeg();
 
-  // Set up progress handler
+  // Set up progress handler (clamp to valid range)
   ffmpeg.on("progress", ({ progress }) => {
-    onProgress(progress * 100);
+    const pct = Math.max(0, Math.min(100, progress * 100));
+    onProgress(pct);
   });
 
   // Write input file
@@ -66,9 +78,9 @@ export async function convertToMp4(
     "-c:v",
     "libx264",
     "-preset",
-    "medium",
+    "fast", // Faster encode with minimal quality loss
     "-crf",
-    "18", // High quality
+    "20", // Good quality, faster encode
     "-pix_fmt",
     "yuv420p", // Compatibility
     "-movflags",

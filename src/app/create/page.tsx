@@ -257,7 +257,7 @@ export default function CreatePage() {
                   <div>
                     <div className="font-semibold mb-1">Video (MP4)</div>
                     <div className="text-sm text-[var(--color-ink-text-secondary)]">
-                      15-30 second seamless loop for TikTok, Reels
+                      5 second loop for TikTok, Reels
                     </div>
                   </div>
                   <Download className="w-5 h-5 text-[var(--color-ink-text-muted)]" />

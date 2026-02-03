@@ -95,6 +95,11 @@ function ExportController({ onRegister, animSpeed }: ExportControllerProps) {
       }),
       setSize: (width: number, height: number) => {
         gl.setSize(width, height);
+        // Update camera aspect ratio to prevent distortion
+        if (camera instanceof THREE.PerspectiveCamera) {
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+        }
       },
       render: () => {
         gl.render(scene, camera);

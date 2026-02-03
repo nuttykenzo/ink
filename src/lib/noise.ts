@@ -97,14 +97,32 @@ export function snoise2D(x: number, y: number): number {
 
 /**
  * Fractal Brownian Motion
- * Combines 5 octaves of Simplex noise
+ * Combines 4 octaves of Simplex noise
  */
 export function fbm(x: number, y: number, seed: number): number {
   let value = 0.0;
   let amplitude = 0.5;
   let frequency = 1.0;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 4; i++) {
+    value += amplitude * snoise2D(x * frequency + seed, y * frequency + seed);
+    frequency *= 2.0;
+    amplitude *= 0.5;
+  }
+
+  return value;
+}
+
+/**
+ * Light Fractal Brownian Motion (3 octaves)
+ * Used for domain warping where fine detail is less important
+ */
+export function fbmLight(x: number, y: number, seed: number): number {
+  let value = 0.0;
+  let amplitude = 0.5;
+  let frequency = 1.0;
+
+  for (let i = 0; i < 3; i++) {
     value += amplitude * snoise2D(x * frequency + seed, y * frequency + seed);
     frequency *= 2.0;
     amplitude *= 0.5;
@@ -116,7 +134,7 @@ export function fbm(x: number, y: number, seed: number): number {
 /**
  * Get flow field velocity at a position
  * Used for particle advection - particles follow this velocity field
- * Matches GLSL getFlowVelocity() exactly
+ * Optimized to match simplified shader (removed r layer)
  *
  * @returns [vx, vy] velocity vector (normalized)
  */
@@ -131,29 +149,18 @@ export function getFlowVelocity(
   const s = seed * 0.001;
   const t = time * 0.1;
 
-  // Domain warping (same as flowField.frag main())
-  const q_x = fbm(posX * complexity + s, posY * complexity + s, s);
-  const q_y = fbm(posX * complexity + 5.2 + s, posY * complexity + 1.3 + s, s + 1.0);
+  // Domain warping using light FBM (3 octaves)
+  const q_x = fbmLight(posX * complexity + s, posY * complexity + s, s);
+  const q_y = fbmLight(posX * complexity + 5.2 + s, posY * complexity + 1.3 + s, s + 1.0);
 
-  const r_x = fbm(
-    posX * complexity + 4.0 * q_x + 1.7 + t,
-    posY * complexity + 4.0 * q_y + 9.2 + t,
-    s + 2.0
-  );
-  const r_y = fbm(
-    posX * complexity + 4.0 * q_x + 8.3 + t,
-    posY * complexity + 4.0 * q_y + 2.8 + t,
-    s + 3.0
-  );
-
-  // Compute gradient via central difference
+  // Compute gradient via central difference (using q directly, no r layer)
   const eps = 0.01;
-  const warpedX = posX * complexity + 4.0 * r_x * organicness;
-  const warpedY = posY * complexity + 4.0 * r_y * organicness;
+  const warpedX = posX * complexity + 4.0 * q_x * organicness + t;
+  const warpedY = posY * complexity + 4.0 * q_y * organicness + t;
 
-  const f0 = fbm(warpedX, warpedY, s + 4.0);
-  const fx = fbm(warpedX + eps, warpedY, s + 4.0);
-  const fy = fbm(warpedX, warpedY + eps, s + 4.0);
+  const f0 = fbm(warpedX, warpedY, s + 2.0);
+  const fx = fbm(warpedX + eps, warpedY, s + 2.0);
+  const fy = fbm(warpedX, warpedY + eps, s + 2.0);
 
   // Gradient
   const gradX = (fx - f0) / eps;

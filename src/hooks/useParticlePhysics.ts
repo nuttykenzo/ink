@@ -11,6 +11,7 @@ interface ParticleBuffers {
   ages: Float32Array;           // Age per particle (0-1)
   colors: Float32Array;         // RGB per particle
   trailIndices: Float32Array;   // Trail position index (0=head, 1=tail)
+  respawnData: Float32Array;    // Pre-computed respawn positions (x, y) * particleCount * RESPAWN_POOL_SIZE
 }
 
 interface ParticlePhysicsResult {
@@ -19,6 +20,9 @@ interface ParticlePhysicsResult {
   totalVertices: number;
   trailSegments: number;
 }
+
+// Pre-compute respawn pool size per particle (module constant)
+const RESPAWN_POOL_SIZE = 16;
 
 // Seeded random number generator for deterministic initialization
 function seededRandom(seed: number): () => number {
@@ -59,6 +63,25 @@ export function useParticlePhysics(params: VisualParams): ParticlePhysicsResult 
 
     // Trail indices (0 = head, 1 = tail)
     const trailIndices = new Float32Array(totalVertices);
+
+    // Pre-computed respawn positions (x, y) per particle
+    const respawnData = new Float32Array(particleCount * RESPAWN_POOL_SIZE * 2);
+    const margin = 0.1;
+    for (let p = 0; p < particleCount; p++) {
+      for (let r = 0; r < RESPAWN_POOL_SIZE; r++) {
+        const idx = (p * RESPAWN_POOL_SIZE + r) * 2;
+        const edge = Math.floor(random() * 4);
+        let rx: number, ry: number;
+        switch (edge) {
+          case 0: rx = (random() - 0.5) * 2; ry = -1 - margin * 0.5; break;
+          case 1: rx = (random() - 0.5) * 2; ry = 1 + margin * 0.5; break;
+          case 2: rx = -1 - margin * 0.5; ry = (random() - 0.5) * 2; break;
+          default: rx = 1 + margin * 0.5; ry = (random() - 0.5) * 2; break;
+        }
+        respawnData[idx] = rx;
+        respawnData[idx + 1] = ry;
+      }
+    }
 
     // Initialize particles
     for (let p = 0; p < particleCount; p++) {
@@ -117,16 +140,30 @@ export function useParticlePhysics(params: VisualParams): ParticlePhysicsResult 
       ages,
       colors,
       trailIndices,
+      respawnData,
     };
   }, [particleCount, trailSegments, seed, totalVertices]);
 
   // Store previous head positions for trail update
-  const headPositions = useRef<Float32Array>(
-    new Float32Array(particleCount * 3)
-  );
+  const headPositions = useRef<Float32Array | null>(null);
 
-  // Initialize head positions
+  // Respawn counters per particle (cycles through pre-computed respawn positions)
+  const respawnCounters = useRef<Uint8Array | null>(null);
+
+  // Initialize/resize refs and head positions when buffers change
   useMemo(() => {
+    const headPosSize = particleCount * 3;
+    const countersSize = particleCount;
+
+    // Resize refs if needed
+    if (!headPositions.current || headPositions.current.length !== headPosSize) {
+      headPositions.current = new Float32Array(headPosSize);
+    }
+    if (!respawnCounters.current || respawnCounters.current.length !== countersSize) {
+      respawnCounters.current = new Uint8Array(countersSize);
+    }
+
+    // Initialize head positions from buffer
     for (let p = 0; p < particleCount; p++) {
       const headIdx = p * trailSegments;
       headPositions.current[p * 3] = buffers.positions[headIdx * 3];
@@ -138,6 +175,9 @@ export function useParticlePhysics(params: VisualParams): ParticlePhysicsResult 
   // Update function called each frame
   const update = useCallback(
     (time: number, delta: number) => {
+      // Guard against uninitialized refs (should never happen in practice)
+      if (!headPositions.current || !respawnCounters.current) return;
+
       const dt = Math.min(delta, 0.05); // Cap delta to prevent large jumps
       const speed = animSpeed * 0.5; // Base movement speed
 
@@ -169,27 +209,12 @@ export function useParticlePhysics(params: VisualParams): ParticlePhysicsResult 
         // Boundary handling: wrap around or respawn
         const margin = 0.1;
         if (x < -1 - margin || x > 1 + margin || y < -1 - margin || y > 1 + margin) {
-          // Respawn at random edge
-          const random = seededRandom(seed + p + Math.floor(time * 1000));
-          const edge = Math.floor(random() * 4);
-          switch (edge) {
-            case 0: // Top
-              x = (random() - 0.5) * 2;
-              y = -1 - margin * 0.5;
-              break;
-            case 1: // Bottom
-              x = (random() - 0.5) * 2;
-              y = 1 + margin * 0.5;
-              break;
-            case 2: // Left
-              x = -1 - margin * 0.5;
-              y = (random() - 0.5) * 2;
-              break;
-            case 3: // Right
-              x = 1 + margin * 0.5;
-              y = (random() - 0.5) * 2;
-              break;
-          }
+          // Use pre-computed respawn position (cycle through pool)
+          const respawnIdx = respawnCounters.current[p];
+          const dataIdx = (p * RESPAWN_POOL_SIZE + respawnIdx) * 2;
+          x = buffers.respawnData[dataIdx];
+          y = buffers.respawnData[dataIdx + 1];
+          respawnCounters.current[p] = (respawnIdx + 1) % RESPAWN_POOL_SIZE;
 
           // Reset trail to new position
           for (let t = 0; t < trailSegments; t++) {
@@ -206,26 +231,22 @@ export function useParticlePhysics(params: VisualParams): ParticlePhysicsResult 
         headPositions.current[p * 3] = x;
         headPositions.current[p * 3 + 1] = y;
 
-        // Shift trail positions (tail to head)
-        for (let t = trailSegments - 1; t > 0; t--) {
-          const currIdx = headIdx + t;
-          const prevIdx = headIdx + t - 1;
+        // Shift trail positions using native copyWithin (much faster than loop)
+        const trailStart = headIdx * 3;
+        const trailLen = (trailSegments - 1) * 3;
+        buffers.positions.copyWithin(trailStart + 3, trailStart, trailStart + trailLen);
 
-          buffers.positions[currIdx * 3] = buffers.positions[prevIdx * 3];
-          buffers.positions[currIdx * 3 + 1] = buffers.positions[prevIdx * 3 + 1];
-          buffers.positions[currIdx * 3 + 2] = buffers.positions[prevIdx * 3 + 2];
-        }
+        // Shift ages to match position shifts
+        const ageTrailLen = trailSegments - 1;
+        buffers.ages.copyWithin(headIdx + 1, headIdx, headIdx + ageTrailLen);
 
         // Set new head position (z=0.1 to render in front of flow field)
         buffers.positions[headIdx * 3] = x;
         buffers.positions[headIdx * 3 + 1] = y;
         buffers.positions[headIdx * 3 + 2] = 0.1;
 
-        // Update age (increment, capped at 1)
-        for (let t = 0; t < trailSegments; t++) {
-          const idx = headIdx + t;
-          buffers.ages[idx] = Math.min(buffers.ages[idx] + dt * 0.5, 1.0);
-        }
+        // Update head age only (trail ages propagate via copyWithin)
+        buffers.ages[headIdx] = Math.min(buffers.ages[headIdx] + dt * 0.5, 1.0);
       }
     },
     [buffers, particleCount, trailSegments, seed, complexity, organicness, animSpeed]

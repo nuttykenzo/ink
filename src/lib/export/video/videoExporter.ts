@@ -21,19 +21,21 @@ export async function exportVideo(
     };
   }
 
-  const duration = config.videoDuration ?? 20;
+  const duration = config.videoDuration ?? 5;
   const fps = config.videoFps ?? 30;
-  const width = config.videoWidth ?? 1080;
-  const height = config.videoHeight ?? 1920;
 
-  // Store original size
+  // Use original canvas size (no resize needed)
   const original = capture.getSize();
+  const width = config.videoWidth ?? original.width;
+  const height = config.videoHeight ?? original.height;
 
   try {
     onProgress({ phase: "preparing", progress: 0, message: "Preparing..." });
 
-    // Resize to export dimensions
-    capture.setSize(width, height);
+    // Only resize if different from original
+    if (width !== original.width || height !== original.height) {
+      capture.setSize(width, height);
+    }
 
     // Phase 1: Capture with MediaRecorder
     onProgress({ phase: "capturing", progress: 0, message: "Recording frames..." });

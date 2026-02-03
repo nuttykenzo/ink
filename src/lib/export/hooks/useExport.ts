@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { useInkStore } from "@/lib/store";
 import type {
   ExportFormat,
@@ -18,6 +18,7 @@ import { downloadBlob } from "../download";
 import { exportPng } from "../png/pngExporter";
 import { exportGif } from "../gif/gifExporter";
 import { exportVideo } from "../video/videoExporter";
+import { prewarmFFmpeg } from "../video/ffmpegEncoder";
 
 export function useExport() {
   const [progress, setProgress] = useState<ExportProgress>({
@@ -35,6 +36,11 @@ export function useExport() {
       capabilitiesRef.current = detectCapabilities();
     }
     return capabilitiesRef.current;
+  }, []);
+
+  // Pre-warm FFmpeg.wasm when hook mounts (before user clicks export)
+  useEffect(() => {
+    prewarmFFmpeg();
   }, []);
 
   // Register the canvas capture interface
@@ -84,24 +90,19 @@ export function useExport() {
               : 4;
             result = await exportGif(
               captureRef.current,
-              { format: "gif", gifDuration, gifFps: 15, gifSize: 720 },
+              { format: "gif", gifDuration, gifFps: 12, gifSize: 720 },
               setProgress
             );
             break;
 
           case "video":
-            // Calculate video duration based on complexity (15-30 seconds)
-            const videoDuration = visualParams
-              ? 15 + (visualParams.complexity / 10) * 15
-              : 20;
+            // Short duration for fast export (5 seconds)
             result = await exportVideo(
               captureRef.current,
               {
                 format: "video",
-                videoDuration,
+                videoDuration: 5,
                 videoFps: 30,
-                videoWidth: 1080,
-                videoHeight: 1920,
               },
               setProgress
             );
